@@ -3,7 +3,7 @@ import { ArrowLeft, Check, ChevronDown } from "lucide-react";
 import { ChangeEvent, FormEvent, useState } from "react";
 import FoodMuseHome from "./FoodMuseHome";
 
-function Register({ onNext, onLogin }: { onNext: () => void; onLogin: () => void }) {
+function Register({ onNext, onLogin }: { onNext: (userId: string) => void; onLogin: () => void }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,7 +19,6 @@ function Register({ onNext, onLogin }: { onNext: () => void; onLogin: () => void
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration logic
     
     try {
       const response = await fetch('http://localhost:5555/reg', {
@@ -29,7 +28,9 @@ function Register({ onNext, onLogin }: { onNext: () => void; onLogin: () => void
       });
       
       if (response.ok) {
-        onNext();
+        const data = await response.json();
+        // Pass the user ID to the next component
+        onNext(data.userId || '');
       } else {
         console.error('Registration failed.');
       }
@@ -39,10 +40,11 @@ function Register({ onNext, onLogin }: { onNext: () => void; onLogin: () => void
   };
 
   return (
+    
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gray-50">
-      {/* Placeholder background */}
+      
       <div className="absolute inset-0 bg-gray-200 border-2 border-dashed rounded-xl" />
-      {/* Overlay */}
+     
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -147,7 +149,7 @@ function Register({ onNext, onLogin }: { onNext: () => void; onLogin: () => void
 }
 
 
-function HealthProfile({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function HealthProfile({ onNext, onBack, userId }: { onNext: () => void; onBack: () => void; userId: string }) {
   const [formData, setFormData] = useState({
     height: '',
     heightUnit: 'cm',
@@ -192,10 +194,33 @@ function HealthProfile({ onNext, onBack }: { onNext: () => void; onBack: () => v
     }));
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: Implement health profile submission logic
-    onNext();
+    console.log("Submitting health profile with userId:", userId);
+    console.log("Form data being sent:", formData);
+    
+    try {
+      const response = await fetch(`http://localhost:5555/user/${userId}/health`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      console.log("Response status:", response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Success response:", data);
+        onNext(); 
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Health profile update failed:', errorData);
+        alert('Failed to update health profile. Please try again.');
+      }
+    } catch (error) {
+      console.error('Health profile update error:', error);
+      alert('Network error. Please check your connection and try again.');
+    }
   };
 
   const dietaryOptions: Record<string, string> = {
@@ -210,6 +235,7 @@ function HealthProfile({ onNext, onBack }: { onNext: () => void; onBack: () => v
   };
 
   return (
+    
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gray-50">
       <div className="absolute inset-0 bg-gray-200 border-2 border-dashed rounded-xl" />
       <motion.div
@@ -367,6 +393,7 @@ function HealthProfile({ onNext, onBack }: { onNext: () => void; onBack: () => v
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
+              onClick={handleSubmit}
               className="flex items-center justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
             >
               Complete Registration
@@ -379,13 +406,14 @@ function HealthProfile({ onNext, onBack }: { onNext: () => void; onBack: () => v
   );
 }
 
+
 function Login({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login logic
     onNext();
   };
 
@@ -466,6 +494,7 @@ function Login({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
 }
 
 function Home({ onRegister, onLogin }: { onRegister: () => void; onLogin: () => void }) {
+  // Component code remains the same
   return (
     <div className="relative">
       <header className="absolute top-0 left-0 right-0 z-20 px-4 py-4">
@@ -566,12 +595,15 @@ function Home({ onRegister, onLogin }: { onRegister: () => void; onLogin: () => 
 
 export default function index() {
   const [currentPage, setCurrentPage] = useState<'home' | 'register' | 'health' | 'login' | 'FoodMuseHome'>('home');
+  const [userId, setUserId] = useState<string>('');
 
   const goToRegister = () => setCurrentPage('register');
-  const goToHealth = () => setCurrentPage('health');
+  const goToHealth = (id: string) => {
+    setUserId(id);
+    setCurrentPage('health');
+  };
   const goToLogin = () => setCurrentPage('login');
   const goToFMH = () => setCurrentPage('FoodMuseHome');
-
 
   const goBackFromHealth = () => setCurrentPage('register');
   const goBackFromLogin = () => setCurrentPage('home');
@@ -581,10 +613,10 @@ export default function index() {
   } else if (currentPage === 'register') {
     return <Register onNext={goToHealth} onLogin={goToLogin} />;
   } else if (currentPage === 'health') {
-    return <HealthProfile onNext={goToLogin} onBack={goBackFromHealth} />;
+    return <HealthProfile onNext={goToLogin} onBack={goBackFromHealth} userId={userId} />;
   } else if (currentPage === 'login') {
     return <Login onNext={goToFMH} onBack={goBackFromLogin} />;
-  } else if(currentPage == 'FoodMuseHome'){
+  } else if(currentPage === 'FoodMuseHome'){
     return <FoodMuseHome />;
   }
   return null;

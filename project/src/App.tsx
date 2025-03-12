@@ -10,6 +10,7 @@ import HealthProfile from './pages/HealthProfile';
 import Index from './pages/index';
 import Ho from './pages/FoodMuseHome'
 
+
 function App() {
   return (
     <Router>
